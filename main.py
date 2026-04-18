@@ -1,131 +1,170 @@
 import os
 import json
 import discord
+import asyncio
+import random
 from discord.ext import commands, tasks
 from discord import app_commands
-import random
 
+# ================= AYARLAR & INTENTS =================
 intents = discord.Intents.all()
 bot = commands.Bot(command_prefix="!", intents=intents)
 
-# ================= DATABASE =================
+INVITE_DB = "invites.json"
+WARN_DB = "warns.json"
+invites = {}
+giveaways = {}
+
+# ================= VERİTABANI YÖNETİMİ =================
 def load_db(name):
     if not os.path.exists(name):
         with open(name, "w") as f:
             json.dump({}, f)
-    with open(name, "r") as f:
-        return json.load(f)
+    try:
+        with open(name, "r") as f:
+            return json.load(f)
+    except:
+        return {}
 
 def save_db(name, data):
     with open(name, "w") as f:
         json.dump(data, f, indent=4)
 
-# ================= READY =================
-@bot.event
-async def on_ready():
-    await bot.tree.sync()
-    print(f"{bot.user} aktif!")
+# ================= TICKET SİSTEMİ (SELECT MENU) =================
+class TicketControlView(discord.ui.View):
+    def __init__(self):
+        super().__init__(timeout=None)
 
-# ================= WARN SYSTEM =================
-@bot.tree.command(name="warn")
-async def warn(interaction: discord.Interaction, user: discord.Member, reason: str = "Yok"):
-    db = load_db("warns.json")
-    uid = str(user.id)
+    @discord.ui.button(label="Ticketı Kapat", style=discord.ButtonStyle.red, emoji="🔒", custom_id="close_ticket")
+    async def close_ticket(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await interaction.response.send_message("Kanal kapatılıyor...")
+        await asyncio.sleep(3)
+        await interaction.channel.delete()
 
-    if uid not in db:
-        db[uid] = []
+class TicketSelect(discord.ui.Select):
+    def __init__(self):
+        options = [
+            discord.SelectOption(label="Ekip Alımı", description="Klanımıza katılmak için başvurun.", emoji="⚔️"),
+            discord.SelectOption(label="Yetkili Alımı", description="Rehber/Mod başvurusu.", emoji="🛡️"),
+            discord.SelectOption(label="Şikayet", description="Oyuncu veya durum şikayeti.", emoji="🚫"),
+            discord.SelectOption(label="Destek", description="Genel yardım ve sorular.", emoji="🎫")
+        ]
+        super().__init__(placeholder="Bir kategori seçin...", min_values=1, max_values=1, options=options)
 
-    db[uid].append(reason)
-    save_db("warns.json", db)
-
-    await interaction.response.send_message(f"{user} uyarıldı.")
-
-@bot.tree.command(name="warnlar")
-async def warnlar(interaction: discord.Interaction, user: discord.Member):
-    db = load_db("warns.json")
-    uid = str(user.id)
-
-    if uid not in db:
-        await interaction.response.send_message("Warn yok.")
-        return
-
-    warns = "\n".join(db[uid])
-    await interaction.response.send_message(f"{user} warnları:\n{warns}")
-
-# ================= INVITE SYSTEM =================
-invites = {}
-invite_db_file = "invites.json"
-
-@bot.event
-async def on_ready():
-    for guild in bot.guilds:
-        invites[guild.id] = await guild.invites()
-
-@bot.event
-async def on_member_join(member):
-    db = load_db(invite_db_file)
-    before = invites[member.guild.id]
-    after = await member.guild.invites()
-    invites[member.guild.id] = after
-
-    for i in after:
-        for j in before:
-            if i.code == j.code and i.uses > j.uses:
-                inviter = str(i.inviter.id)
-                db[inviter] = db.get(inviter, 0) + 1
-                save_db(invite_db_file, db)
-
-@bot.tree.command(name="invite-kontrol")
-async def invite_kontrol(interaction: discord.Interaction, user: discord.Member):
-    db = load_db(invite_db_file)
-    count = db.get(str(user.id), 0)
-    await interaction.response.send_message(f"{user} davet sayısı: {count}")
-
-# ================= TICKET =================
-class TicketView(discord.ui.View):
-    @discord.ui.button(label="Ticket Aç", style=discord.ButtonStyle.green)
-    async def open_ticket(self, interaction: discord.Interaction, button: discord.ui.Button):
+    async def callback(self, interaction: discord.Interaction):
         guild = interaction.guild
-        role = discord.utils.get(guild.roles, name="Support")
+        category_name = self.values[0]
+        support_role = discord.utils.get(guild.roles, name="Support")
 
         overwrites = {
             guild.default_role: discord.PermissionOverwrite(view_channel=False),
-            interaction.user: discord.PermissionOverwrite(view_channel=True)
+            interaction.user: discord.PermissionOverwrite(view_channel=True, send_messages=True, read_message_history=True),
         }
-        if role:
-            overwrites[role] = discord.PermissionOverwrite(view_channel=True)
+        if support_role:
+            overwrites[support_role] = discord.PermissionOverwrite(view_channel=True, send_messages=True)
 
-        channel = await guild.create_text_channel(f"ticket-{interaction.user.name}", overwrites=overwrites)
-        await channel.send(f"{interaction.user.mention} ticket açtı.")
-        await interaction.response.send_message("Açıldı!", ephemeral=True)
+        channel = await guild.create_text_channel(
+            name=f"{category_name.lower()}-{interaction.user.name}",
+            overwrites=overwrites
+        )
 
-@bot.tree.command(name="ticket-kur")
+        embed = discord.Embed(
+            title=f"🎫 {category_name} Talebi",
+            description=f"Merhaba {interaction.user.mention}, talebiniz alındı. Yetkililer yakında ilgilenecektir.",
+            color=discord.Color.green()
+        )
+        await channel.send(embed=embed, view=TicketControlView())
+        await interaction.response.send_message(f"Ticket kanalınız oluşturuldu: {channel.mention}", ephemeral=True)
+
+class TicketView(discord.ui.View):
+    def __init__(self):
+        super().__init__(timeout=None)
+        self.add_item(TicketSelect())
+
+# ================= BOT EVENTS =================
+@bot.event
+async def on_ready():
+    for guild in bot.guilds:
+        try:
+            invites[guild.id] = await guild.invites()
+        except:
+            pass
+
+    if not check_giveaways.is_running():
+        check_giveaways.start()
+
+    await bot.tree.sync()
+    print(f"✅ {bot.user} Aktif! Railway üzerinde çalışıyor.")
+
+@bot.event
+async def on_member_join(member):
+    db = load_db(INVITE_DB)
+    try:
+        guild_invs_before = invites.get(member.guild.id, [])
+        guild_invs_after = await member.guild.invites()
+        invites[member.guild.id] = guild_invs_after
+
+        for inv in guild_invs_after:
+            for old_inv in guild_invs_before:
+                if inv.code == old_inv.code and inv.uses > old_inv.uses:
+                    inviter_id = str(inv.inviter.id)
+                    db[inviter_id] = db.get(inviter_id, 0) + 1
+                    save_db(INVITE_DB, db)
+                    return
+    except:
+        pass
+
+# ================= KOMUTLAR =================
+
+@bot.tree.command(name="oylama", description="Hızlı bir oylama başlatır.")
+async def oylama(interaction: discord.Interaction, soru: str):
+    embed = discord.Embed(title="📊 Klan Oylaması", description=soru, color=discord.Color.blue())
+    embed.set_footer(text=f"Başlayan: {interaction.user.name}")
+    await interaction.response.send_message("Oylama oluşturuldu!", ephemeral=True)
+    msg = await interaction.channel.send(embed=embed)
+    await msg.add_reaction("✅")
+    await msg.add_reaction("❌")
+
+@bot.tree.command(name="ticket-kur", description="Kategorili ticket sistemini kurar.")
 async def ticket_kur(interaction: discord.Interaction):
-    await interaction.channel.send("Ticket:", view=TicketView())
-    await interaction.response.send_message("Kuruldu", ephemeral=True)
+    embed = discord.Embed(
+        title="⚔️ Klan Destek & Başvuru",
+        description="Lütfen işlem yapmak istediğiniz kategoriyi aşağıdaki menüden seçin.",
+        color=discord.Color.dark_grey()
+    )
+    await interaction.channel.send(embed=embed, view=TicketView())
+    await interaction.response.send_message("Sistem kuruldu.", ephemeral=True)
 
-@bot.tree.command(name="ticket-kapat")
-async def ticket_kapat(interaction: discord.Interaction):
-    messages = [msg async for msg in interaction.channel.history(limit=100)]
-    content = "\n".join([f"{m.author}: {m.content}" for m in messages])
+@bot.tree.command(name="warn", description="Bir kullanıcıyı uyarır.")
+@app_commands.checks.has_permissions(manage_messages=True)
+async def warn(interaction: discord.Interaction, user: discord.Member, sebep: str = "Belirtilmedi"):
+    db = load_db(WARN_DB)
+    uid = str(user.id)
+    if uid not in db: db[uid] = []
+    db[uid].append(sebep)
+    save_db(WARN_DB, db)
+    await interaction.response.send_message(f"⚠️ {user.mention} uyarıldı. Toplam Uyarı: {len(db[uid])}")
 
-    with open("transcript.txt", "w", encoding="utf-8") as f:
-        f.write(content)
+@bot.tree.command(name="warnlar", description="Bir kullanıcının uyarılarını listeler.")
+async def warnlar(interaction: discord.Interaction, user: discord.Member):
+    db = load_db(WARN_DB)
+    warn_list = db.get(str(user.id), [])
+    text = "\n".join([f"{i+1}. {s}" for i, s in enumerate(warn_list)]) if warn_list else "Uyarı yok."
+    await interaction.response.send_message(f"📋 **{user.name} Uyarıları:**\n{text}")
 
-    await interaction.channel.send("Transcript alındı.")
-    await interaction.channel.delete()
+@bot.tree.command(name="inviteler", description="Davet sayınızı gösterir.")
+async def inviteler(interaction: discord.Interaction, user: discord.Member = None):
+    user = user or interaction.user
+    db = load_db(INVITE_DB)
+    count = db.get(str(user.id), 0)
+    await interaction.response.send_message(f"📩 {user.mention} toplam **{count}** davete sahip.")
 
-# ================= GIVEAWAY =================
-giveaways = {}
-
-@bot.tree.command(name="çekiliş")
-async def cekilis(interaction: discord.Interaction, sure: int, odul: str):
-    embed = discord.Embed(title="🎉 Çekiliş", description=odul)
+@bot.tree.command(name="çekiliş", description="Çekiliş başlatır (saniye cinsinden).")
+async def cekilis(interaction: discord.Interaction, saniye: int, odul: str):
+    embed = discord.Embed(title="🎉 Çekiliş!", description=f"Ödül: **{odul}**\nSüre: {saniye}s", color=discord.Color.random())
     msg = await interaction.channel.send(embed=embed)
     await msg.add_reaction("🎉")
-
-    giveaways[msg.id] = {"end": sure, "channel": interaction.channel.id}
-
+    giveaways[msg.id] = {"end": saniye, "channel": interaction.channel.id, "reward": odul}
     await interaction.response.send_message("Başladı!", ephemeral=True)
 
 @tasks.loop(seconds=10)
@@ -134,17 +173,18 @@ async def check_giveaways():
         giveaways[msg_id]["end"] -= 10
         if giveaways[msg_id]["end"] <= 0:
             channel = bot.get_channel(giveaways[msg_id]["channel"])
-            msg = await channel.fetch_message(msg_id)
-            users = [u async for u in msg.reactions[0].users() if not u.bot]
-            if users:
-                winner = random.choice(users)
-                await channel.send(f"Kazanan: {winner.mention}")
-            else:
-                await channel.send("Katılım yok.")
+            if channel:
+                try:
+                    msg = await channel.fetch_message(msg_id)
+                    users = [u async for u in msg.reactions[0].users() if not u.bot]
+                    winner = random.choice(users).mention if users else "Kimse"
+                    await channel.send(f"🎊 Ödül: **{giveaways[msg_id]['reward']}** | Kazanan: {winner}")
+                except: pass
             del giveaways[msg_id]
 
-@bot.event
-async def on_ready():
-    check_giveaways.start()
-
-bot.run(os.getenv("TOKEN"))
+# ================= ÇALIŞTIR =================
+TOKEN = os.getenv("TOKEN")
+if TOKEN:
+    bot.run(TOKEN)
+else:
+    print("HATA: Railway panelinden 'TOKEN' değişkenini eklemediniz!")
