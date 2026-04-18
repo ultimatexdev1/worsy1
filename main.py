@@ -6,7 +6,6 @@ import random
 from discord.ext import commands, tasks
 from discord import app_commands
 
-# ================= AYARLAR & INTENTS =================
 intents = discord.Intents.all()
 bot = commands.Bot(command_prefix="!", intents=intents)
 
@@ -21,7 +20,6 @@ SES_KANAL_ID = 1495031512729518242
 invites = {}
 giveaways = {}
 
-# ================= VERİTABANI SİSTEMİ =================
 def load_db(name):
     if not os.path.exists(name):
         with open(name, "w") as f:
@@ -36,7 +34,7 @@ def save_db(name, data):
     with open(name, "w") as f:
         json.dump(data, f, indent=4)
 
-# ================= TICKET SİSTEMİ (SELECT MENU) =================
+
 class TicketControlView(discord.ui.View):
     def __init__(self):
         super().__init__(timeout=None)
@@ -87,7 +85,7 @@ class TicketView(discord.ui.View):
         super().__init__(timeout=None)
         self.add_item(TicketSelect())
 
-# ================= 7/24 SES BAĞLANTISI =================
+
 async def stay_in_voice():
     channel = bot.get_channel(SES_KANAL_ID)
     if not channel:
@@ -106,7 +104,7 @@ async def stay_in_voice():
     elif vc.channel.id != SES_KANAL_ID:
         await vc.move_to(channel)
 
-# ================= BOT EVENTS =================
+
 @bot.event
 async def on_ready():
     # İlk girişte sese bağlan
@@ -150,8 +148,6 @@ async def on_member_join(member):
                     return
     except:
         pass
-
-# ================= KOMUTLAR =================
 
 @bot.tree.command(name="duyuru-at", description="Duyuru kanalına mesaj gönderir.")
 @app_commands.checks.has_permissions(administrator=True)
@@ -230,7 +226,7 @@ async def check_giveaways():
                 except: pass
             del giveaways[msg_id]
 
-# ================= ÇALIŞTIR =================
+
 TOKEN = os.getenv("TOKEN")
 if TOKEN:
     bot.run(TOKEN)
