@@ -12,6 +12,7 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 
 INVITE_DB = "invites.json"
 WARN_DB = "warns.json"
+DUYURU_KANAL_ID = 1494733087689674840 # Sabit duyuru kanalı
 invites = {}
 giveaways = {}
 
@@ -115,6 +116,39 @@ async def on_member_join(member):
         pass
 
 # ================= KOMUTLAR =================
+
+# --- YENİ EKLENEN KOMUTLAR ---
+
+@bot.tree.command(name="partner-paylaş", description="Belirtilen kanalda partnerlik mesajını paylaşır.")
+@app_commands.checks.has_permissions(manage_channels=True)
+async def partner_paylas(interaction: discord.Interaction, kanal: discord.TextChannel, mesaj: str):
+    embed = discord.Embed(
+        title="🤝 Yeni Partnerlik!",
+        description=mesaj,
+        color=discord.Color.purple()
+    )
+    embed.set_footer(text=f"Partnerlik Yetkilisi: {interaction.user.name}")
+    await kanal.send(embed=embed)
+    await interaction.response.send_message(f"Partnerlik mesajı {kanal.mention} kanalına gönderildi.", ephemeral=True)
+
+@bot.tree.command(name="duyuru-at", description="Sabit duyuru kanalına mesaj gönderir.")
+@app_commands.checks.has_permissions(administrator=True)
+async def duyuru_at(interaction: discord.Interaction, duyuru_metni: str):
+    channel = bot.get_channel(DUYURU_KANAL_ID)
+    if not channel:
+        await interaction.response.send_message("Hata: Duyuru kanalı bulunamadı. ID'yi kontrol edin.", ephemeral=True)
+        return
+
+    embed = discord.Embed(
+        title="📢 DUYURU",
+        description=duyuru_metni,
+        color=discord.Color.red()
+    )
+    embed.set_footer(text=f"{interaction.guild.name} Yönetimi")
+    await channel.send(content="@everyone", embed=embed)
+    await interaction.response.send_message("Duyuru başarıyla paylaşıldı.", ephemeral=True)
+
+# --- MEVCUT DİĞER KOMUTLAR ---
 
 @bot.tree.command(name="oylama", description="Hızlı bir oylama başlatır.")
 async def oylama(interaction: discord.Interaction, soru: str):
