@@ -52,7 +52,7 @@ class TicketSelect(discord.ui.Select):
         options = [
             discord.SelectOption(label="Ekip Alımı", description="Klanımıza katılmak için başvurun.", emoji="⚔️"),
             discord.SelectOption(label="Yetkili Alımı", description="Rehber/Mod başvurusu.", emoji="🛡️"),
-            discord.SelectOption(label="Şikayet", description="Oyuncu veya durum şikayeti.", emoji="🚫"),
+            discord.SelectOption(label="Partnerlik ve Merge", description="Ortaklık talepleri.", emoji="🤝"),
             discord.SelectOption(label="Destek", description="Genel yardım ve sorular.", emoji="🎫")
         ]
         super().__init__(placeholder="Bir kategori seçin...", min_values=1, max_values=1, options=options)
@@ -76,7 +76,7 @@ class TicketSelect(discord.ui.Select):
 
         embed = discord.Embed(
             title=f"🎫 {category_name} Talebi",
-            description=f"Merhaba {interaction.user.mention}, talebiniz alındı. Yetkililer yakında ilgilenecektir.",
+            description=f"Merhaba {interaction.user.mention}, talebiniz alındı. **Worsy** yetkilileri yakında ilgilenecektir.",
             color=discord.Color.green()
         )
         await channel.send(embed=embed, view=TicketControlView())
@@ -94,7 +94,6 @@ async def stay_in_voice():
         print(f"❌ HATA: {SES_KANAL_ID} ID'li ses kanalı bulunamadı!")
         return
 
-    # Botun o kanalda olup olmadığını kontrol et
     vc = discord.utils.get(bot.voice_clients, guild=channel.guild)
     
     if not vc:
@@ -109,27 +108,22 @@ async def stay_in_voice():
 # ================= BOT EVENTS =================
 @bot.event
 async def on_ready():
-    # İlk girişte sese bağlan
     await stay_in_voice()
 
-    # Invite listesini güncelle
     for guild in bot.guilds:
         try:
             invites[guild.id] = await guild.invites()
         except:
             pass
 
-    # Çekiliş döngüsü
     if not check_giveaways.is_running():
         check_giveaways.start()
 
-    # Slash komutlarını senkronize et
     await bot.tree.sync()
-    print(f"✅ {bot.user} Aktif ve Seste!")
+    print(f"✅ {bot.user} (Worsy) Aktif ve Seste!")
 
 @bot.event
 async def on_voice_state_update(member, before, after):
-    # Eğer bot sesten düşerse veya biri atarsa 5 sn sonra geri girer
     if member.id == bot.user.id and after.channel is None:
         await asyncio.sleep(5)
         await stay_in_voice()
@@ -153,14 +147,15 @@ async def on_member_join(member):
 
 # ================= KOMUTLAR =================
 
-@bot.tree.command(name="duyuru-at", description="Duyuru kanalına mesaj gönderir.")
+@bot.tree.command(name="duyuru-at", description="Worsy duyuru kanalına mesaj gönderir.")
 @app_commands.checks.has_permissions(administrator=True)
 async def duyuru_at(interaction: discord.Interaction, mesaj: str):
     channel = bot.get_channel(DUYURU_KANAL_ID)
     if not channel:
         return await interaction.response.send_message("Hata: Duyuru kanalı bulunamadı!", ephemeral=True)
     
-    embed = discord.Embed(title="📢 DUYURU", description=mesaj, color=discord.Color.red())
+    embed = discord.Embed(title="📢 Worsy | DUYURU", description=mesaj, color=discord.Color.red())
+    embed.set_footer(text="Worsy Yönetimi")
     await channel.send(content="@everyone", embed=embed)
     await interaction.response.send_message("Duyuru başarıyla paylaşıldı.", ephemeral=True)
 
@@ -168,23 +163,24 @@ async def duyuru_at(interaction: discord.Interaction, mesaj: str):
 @app_commands.checks.has_permissions(manage_channels=True)
 async def partner_paylas(interaction: discord.Interaction, kanal: discord.TextChannel, mesaj: str):
     embed = discord.Embed(title="🤝 Yeni Partnerlik!", description=mesaj, color=discord.Color.purple())
+    embed.set_footer(text=f"Yetkili: {interaction.user.name}")
     await kanal.send(embed=embed)
     await interaction.response.send_message(f"Partnerlik {kanal.mention} kanalında paylaşıldı.", ephemeral=True)
 
-@bot.tree.command(name="ticket-kur", description="Ticket sistemini başlatır.")
+@bot.tree.command(name="ticket-kur", description="Worsy ticket sistemini başlatır.")
 @app_commands.checks.has_permissions(administrator=True)
 async def ticket_kur(interaction: discord.Interaction):
     embed = discord.Embed(
-        title="⚔️ Atlas Project | Destek Sistemi",
+        title="⚔️ Worsy | Destek Sistemi",
         description="Aşağıdaki menüden bir kategori seçerek destek talebi oluşturabilirsiniz.",
         color=discord.Color.blue()
     )
     await interaction.channel.send(embed=embed, view=TicketView())
-    await interaction.response.send_message("Sistem kuruldu.", ephemeral=True)
+    await interaction.response.send_message("Ticket sistemi kuruldu.", ephemeral=True)
 
 @bot.tree.command(name="oylama", description="Hızlı oylama başlatır.")
 async def oylama(interaction: discord.Interaction, soru: str):
-    embed = discord.Embed(title="📊 Oylama", description=soru, color=discord.Color.orange())
+    embed = discord.Embed(title="📊 Worsy | Oylama", description=soru, color=discord.Color.orange())
     msg = await interaction.channel.send(embed=embed)
     await msg.add_reaction("✅")
     await msg.add_reaction("❌")
@@ -209,7 +205,7 @@ async def inviteler(interaction: discord.Interaction, user: discord.Member = Non
 
 @bot.tree.command(name="çekiliş", description="Çekiliş başlatır.")
 async def cekilis(interaction: discord.Interaction, saniye: int, odul: str):
-    embed = discord.Embed(title="🎉 Çekiliş!", description=f"Ödül: **{odul}**\nSüre: {saniye}s", color=discord.Color.random())
+    embed = discord.Embed(title="🎉 Worsy | Çekiliş!", description=f"Ödül: **{odul}**\nSüre: {saniye}s", color=discord.Color.random())
     msg = await interaction.channel.send(embed=embed)
     await msg.add_reaction("🎉")
     giveaways[msg.id] = {"end": saniye, "channel": interaction.channel.id, "reward": odul}
@@ -235,4 +231,4 @@ TOKEN = os.getenv("TOKEN")
 if TOKEN:
     bot.run(TOKEN)
 else:
-    print("HATA: Railway üzerinde 'TOKEN' değişkeni bulunamadı!")
+    print("HATA: TOKEN değişkeni bulunamadı!")
