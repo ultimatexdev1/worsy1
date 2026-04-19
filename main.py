@@ -14,9 +14,10 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 INVITE_DB = "invites.json"
 WARN_DB = "warns.json"
 
-# Sabit Kanal ID'leri
+# Sabit ID'ler
 DUYURU_KANAL_ID = 1494733087689674840
 SES_KANAL_ID = 1495031512729518242
+OTO_ROL_ID = 1495332036267868220  # Yeni eklenen oto-rol
 
 invites = {}
 giveaways = {}
@@ -36,7 +37,7 @@ def save_db(name, data):
     with open(name, "w") as f:
         json.dump(data, f, indent=4)
 
-# ================= TICKET SİSTEMİ (SELECT MENU) =================
+# ================= TICKET SİSTEMİ =================
 class TicketControlView(discord.ui.View):
     def __init__(self):
         super().__init__(timeout=None)
@@ -89,25 +90,28 @@ class TicketView(discord.ui.View):
 
 # ================= 7/24 SES BAĞLANTISI =================
 async def stay_in_voice():
-    channel = bot.get_channel(SES_KANAL_ID)
-    if not channel:
-        print(f"❌ HATA: {SES_KANAL_ID} ID'li ses kanalı bulunamadı!")
-        return
+    try:
+        # fetch_channel ile kanalı zorla buluruz (Cache hatasını önler)
+        channel = await bot.fetch_channel(SES_KANAL_ID)
+        
+        if not channel:
+            print(f"❌ HATA: {SES_KANAL_ID} bulunamadı!")
+            return
 
-    vc = discord.utils.get(bot.voice_clients, guild=channel.guild)
-    
-    if not vc:
-        try:
-            await channel.connect(reconnect=True, timeout=20)
+        vc = discord.utils.get(bot.voice_clients, guild=channel.guild)
+        
+        if not vc:
+            await channel.connect(reconnect=True, timeout=20, self_deaf=True, self_mute=True)
             print(f"🔊 {channel.name} kanalına giriş yapıldı.")
-        except Exception as e:
-            print(f"❌ Ses bağlantı hatası: {e}")
-    elif vc.channel.id != SES_KANAL_ID:
-        await vc.move_to(channel)
+        elif vc.channel.id != SES_KANAL_ID:
+            await vc.move_to(channel)
+    except Exception as e:
+        print(f"❌ Ses bağlantı hatası: {e}")
 
 # ================= BOT EVENTS =================
 @bot.event
 async def on_ready():
+    await asyncio.sleep(3) # Botun tam yüklenmesi için bekleme
     await stay_in_voice()
 
     for guild in bot.guilds:
@@ -120,7 +124,7 @@ async def on_ready():
         check_giveaways.start()
 
     await bot.tree.sync()
-    print(f"✅ {bot.user} (Worsy) Aktif ve Seste!")
+    print(f"✅ {bot.user} (Worsy) Aktif, Oto-Rol ve Ses Hazır!")
 
 @bot.event
 async def on_voice_state_update(member, before, after):
@@ -130,13 +134,23 @@ async def on_voice_state_update(member, before, after):
 
 @bot.event
 async def on_member_join(member):
+    # --- OTO ROL SİSTEMİ ---
+    role = member.guild.get_role(OTO_ROL_ID)
+    if role:
+        try:
+            await member.add_roles(role)
+            print(f"✅ {member.name} kullanıcısına otomatik rol verildi.")
+        except Exception as e:
+            print(f"❌ Rol verme hatası: {e}")
+
+    # --- INVITE SİSTEMİ ---
     db = load_db(INVITE_DB)
     try:
-        before = invites.get(member.guild.id, [])
-        after = await member.guild.invites()
-        invites[member.guild.id] = after
-        for i in after:
-            for j in before:
+        before_invs = invites.get(member.guild.id, [])
+        after_invs = await member.guild.invites()
+        invites[member.guild.id] = after_invs
+        for i in after_invs:
+            for j in before_invs:
                 if i.code == j.code and i.uses > j.uses:
                     uid = str(i.inviter.id)
                     db[uid] = db.get(uid, 0) + 1
