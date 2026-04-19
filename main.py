@@ -50,7 +50,7 @@ class TicketSelect(discord.ui.Select):
         options = [
             discord.SelectOption(label="Ekip Alımı", description="Klanımıza katılmak için başvurun.", emoji="⚔️"),
             discord.SelectOption(label="Yetkili Alımı", description="Rehber/Mod başvurusu.", emoji="🛡️"),
-            discord.SelectOption(label="Şikayet", description="Oyuncu veya durum şikayeti.", emoji="🚫"),
+            discord.SelectOption(label="Partnerlik Ve Merge", description="Oyuncu veya durum şikayeti.", emoji="🚫"),
             discord.SelectOption(label="Destek", description="Genel yardım ve sorular.", emoji="🎫")
         ]
         super().__init__(placeholder="Bir kategori seçin...", min_values=1, max_values=1, options=options)
@@ -171,7 +171,7 @@ async def partner_paylas(interaction: discord.Interaction, kanal: discord.TextCh
 @app_commands.checks.has_permissions(administrator=True)
 async def ticket_kur(interaction: discord.Interaction):
     embed = discord.Embed(
-        title="⚔️ Atlas Project | Destek Sistemi",
+        title="⚔️ Worsy | Destek Sistemi",
         description="Aşağıdaki menüden bir kategori seçerek destek talebi oluşturabilirsiniz.",
         color=discord.Color.blue()
     )
