@@ -16,8 +16,7 @@ WARN_DB = "warns.json"
 
 # Sabit ID'ler
 DUYURU_KANAL_ID = 1494733087689674840
-SES_KANAL_ID = 1495031512729518242
-OTO_ROL_ID = 1495332036267868220  # Yeni eklenen oto-rol
+OTO_ROL_ID = 1495332036267868220 
 
 invites = {}
 giveaways = {}
@@ -88,48 +87,24 @@ class TicketView(discord.ui.View):
         super().__init__(timeout=None)
         self.add_item(TicketSelect())
 
-# ================= 7/24 SES BAĞLANTISI =================
-async def stay_in_voice():
-    try:
-        channel = await bot.fetch_channel(SES_KANAL_ID)
-        
-        if not channel:
-            print(f"❌ HATA: {SES_KANAL_ID} bulunamadı!")
-            return
-
-        vc = discord.utils.get(bot.voice_clients, guild=channel.guild)
-        
-        if not vc:
-            await channel.connect(reconnect=True, timeout=20, self_deaf=True, self_mute=True)
-            print(f"🔊 {channel.name} kanalına giriş yapıldı.")
-        elif vc.channel.id != SES_KANAL_ID:
-            await vc.move_to(channel)
-    except Exception as e:
-        print(f"❌ Ses bağlantı hatası: {e}")
-
 # ================= BOT EVENTS =================
 @bot.event
 async def on_ready():
     await asyncio.sleep(3) 
-    await stay_in_voice()
 
+    # Sunucu davetlerini önbelleğe al (Invite sistemi için)
     for guild in bot.guilds:
         try:
             invites[guild.id] = await guild.invites()
         except:
             pass
 
+    # Çekiliş kontrolünü başlat
     if not check_giveaways.is_running():
         check_giveaways.start()
 
     await bot.tree.sync()
-    print(f"✅ {bot.user} (Velgrad) Aktif, Oto-Rol ve Ses Hazır!")
-
-@bot.event
-async def on_voice_state_update(member, before, after):
-    if member.id == bot.user.id and after.channel is None:
-        await asyncio.sleep(5)
-        await stay_in_voice()
+    print(f"✅ {bot.user} (Velgrad) Aktif! Ses sistemi devre dışı bırakıldı.")
 
 @bot.event
 async def on_member_join(member):
@@ -138,7 +113,6 @@ async def on_member_join(member):
     if role:
         try:
             await member.add_roles(role)
-            print(f"✅ {member.name} kullanıcısına otomatik rol verildi.")
         except Exception as e:
             print(f"❌ Rol verme hatası: {e}")
 
@@ -172,14 +146,6 @@ async def duyuru_at(interaction: discord.Interaction, mesaj: str):
     await channel.send(content="@everyone", embed=embed)
     await interaction.response.send_message("Duyuru başarıyla paylaşıldı.", ephemeral=True)
 
-@bot.tree.command(name="partner-paylaş", description="Partnerlik mesajı paylaşır.")
-@app_commands.checks.has_permissions(manage_channels=True)
-async def partner_paylas(interaction: discord.Interaction, kanal: discord.TextChannel, mesaj: str):
-    embed = discord.Embed(title="🤝 Yeni Partnerlik!", description=mesaj, color=discord.Color.purple())
-    embed.set_footer(text=f"Yetkili: {interaction.user.name}")
-    await kanal.send(embed=embed)
-    await interaction.response.send_message(f"Partnerlik {kanal.mention} kanalında paylaşıldı.", ephemeral=True)
-
 @bot.tree.command(name="ticket-kur", description="Velgrad ticket sistemini başlatır.")
 @app_commands.checks.has_permissions(administrator=True)
 async def ticket_kur(interaction: discord.Interaction):
@@ -191,13 +157,13 @@ async def ticket_kur(interaction: discord.Interaction):
     await interaction.channel.send(embed=embed, view=TicketView())
     await interaction.response.send_message("Ticket sistemi kuruldu.", ephemeral=True)
 
-@bot.tree.command(name="oylama", description="Hızlı oylama başlatır.")
-async def oylama(interaction: discord.Interaction, soru: str):
-    embed = discord.Embed(title="📊 Velgrad | Oylama", description=soru, color=discord.Color.orange())
+@bot.tree.command(name="çekiliş", description="Çekiliş başlatır.")
+async def cekilis(interaction: discord.Interaction, saniye: int, odul: str):
+    embed = discord.Embed(title="🎉 Velgrad | Çekiliş!", description=f"Ödül: **{odul}**\nSüre: {saniye}s", color=discord.Color.random())
     msg = await interaction.channel.send(embed=embed)
-    await msg.add_reaction("✅")
-    await msg.add_reaction("❌")
-    await interaction.response.send_message("Oylama başlatıldı.", ephemeral=True)
+    await msg.add_reaction("🎉")
+    giveaways[msg.id] = {"end": saniye, "channel": interaction.channel.id, "reward": odul}
+    await interaction.response.send_message("Çekiliş başladı!", ephemeral=True)
 
 @bot.tree.command(name="warn", description="Kullanıcıyı uyarır.")
 @app_commands.checks.has_permissions(manage_messages=True)
@@ -215,14 +181,6 @@ async def inviteler(interaction: discord.Interaction, user: discord.Member = Non
     db = load_db(INVITE_DB)
     count = db.get(str(user.id), 0)
     await interaction.response.send_message(f"📩 {user.mention} toplam davet: **{count}**")
-
-@bot.tree.command(name="çekiliş", description="Çekiliş başlatır.")
-async def cekilis(interaction: discord.Interaction, saniye: int, odul: str):
-    embed = discord.Embed(title="🎉 Velgrad | Çekiliş!", description=f"Ödül: **{odul}**\nSüre: {saniye}s", color=discord.Color.random())
-    msg = await interaction.channel.send(embed=embed)
-    await msg.add_reaction("🎉")
-    giveaways[msg.id] = {"end": saniye, "channel": interaction.channel.id, "reward": odul}
-    await interaction.response.send_message("Çekiliş başladı!", ephemeral=True)
 
 @tasks.loop(seconds=10)
 async def check_giveaways():
