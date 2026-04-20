@@ -77,7 +77,7 @@ class TicketSelect(discord.ui.Select):
 
         embed = discord.Embed(
             title=f"🎫 {category_name} Talebi",
-            description=f"Merhaba {interaction.user.mention}, talebiniz alındı. **Worsy** yetkilileri yakında ilgilenecektir.",
+            description=f"Merhaba {interaction.user.mention}, talebiniz alındı. **Velgrad** yetkilileri yakında ilgilenecektir.",
             color=discord.Color.green()
         )
         await channel.send(embed=embed, view=TicketControlView())
@@ -91,7 +91,6 @@ class TicketView(discord.ui.View):
 # ================= 7/24 SES BAĞLANTISI =================
 async def stay_in_voice():
     try:
-        # fetch_channel ile kanalı zorla buluruz (Cache hatasını önler)
         channel = await bot.fetch_channel(SES_KANAL_ID)
         
         if not channel:
@@ -111,7 +110,7 @@ async def stay_in_voice():
 # ================= BOT EVENTS =================
 @bot.event
 async def on_ready():
-    await asyncio.sleep(3) # Botun tam yüklenmesi için bekleme
+    await asyncio.sleep(3) 
     await stay_in_voice()
 
     for guild in bot.guilds:
@@ -124,7 +123,7 @@ async def on_ready():
         check_giveaways.start()
 
     await bot.tree.sync()
-    print(f"✅ {bot.user} (Worsy) Aktif, Oto-Rol ve Ses Hazır!")
+    print(f"✅ {bot.user} (Velgrad) Aktif, Oto-Rol ve Ses Hazır!")
 
 @bot.event
 async def on_voice_state_update(member, before, after):
@@ -161,15 +160,15 @@ async def on_member_join(member):
 
 # ================= KOMUTLAR =================
 
-@bot.tree.command(name="duyuru-at", description="Worsy duyuru kanalına mesaj gönderir.")
+@bot.tree.command(name="duyuru-at", description="Velgrad duyuru kanalına mesaj gönderir.")
 @app_commands.checks.has_permissions(administrator=True)
 async def duyuru_at(interaction: discord.Interaction, mesaj: str):
     channel = bot.get_channel(DUYURU_KANAL_ID)
     if not channel:
         return await interaction.response.send_message("Hata: Duyuru kanalı bulunamadı!", ephemeral=True)
     
-    embed = discord.Embed(title="📢 Worsy | DUYURU", description=mesaj, color=discord.Color.red())
-    embed.set_footer(text="Worsy Yönetimi")
+    embed = discord.Embed(title="📢 Velgrad | DUYURU", description=mesaj, color=discord.Color.red())
+    embed.set_footer(text="Velgrad Yönetimi")
     await channel.send(content="@everyone", embed=embed)
     await interaction.response.send_message("Duyuru başarıyla paylaşıldı.", ephemeral=True)
 
@@ -181,11 +180,11 @@ async def partner_paylas(interaction: discord.Interaction, kanal: discord.TextCh
     await kanal.send(embed=embed)
     await interaction.response.send_message(f"Partnerlik {kanal.mention} kanalında paylaşıldı.", ephemeral=True)
 
-@bot.tree.command(name="ticket-kur", description="Worsy ticket sistemini başlatır.")
+@bot.tree.command(name="ticket-kur", description="Velgrad ticket sistemini başlatır.")
 @app_commands.checks.has_permissions(administrator=True)
 async def ticket_kur(interaction: discord.Interaction):
     embed = discord.Embed(
-        title="⚔️ Worsy | Destek Sistemi",
+        title="⚔️ Velgrad | Destek Sistemi",
         description="Aşağıdaki menüden bir kategori seçerek destek talebi oluşturabilirsiniz.",
         color=discord.Color.blue()
     )
@@ -194,7 +193,7 @@ async def ticket_kur(interaction: discord.Interaction):
 
 @bot.tree.command(name="oylama", description="Hızlı oylama başlatır.")
 async def oylama(interaction: discord.Interaction, soru: str):
-    embed = discord.Embed(title="📊 Worsy | Oylama", description=soru, color=discord.Color.orange())
+    embed = discord.Embed(title="📊 Velgrad | Oylama", description=soru, color=discord.Color.orange())
     msg = await interaction.channel.send(embed=embed)
     await msg.add_reaction("✅")
     await msg.add_reaction("❌")
@@ -219,7 +218,7 @@ async def inviteler(interaction: discord.Interaction, user: discord.Member = Non
 
 @bot.tree.command(name="çekiliş", description="Çekiliş başlatır.")
 async def cekilis(interaction: discord.Interaction, saniye: int, odul: str):
-    embed = discord.Embed(title="🎉 Worsy | Çekiliş!", description=f"Ödül: **{odul}**\nSüre: {saniye}s", color=discord.Color.random())
+    embed = discord.Embed(title="🎉 Velgrad | Çekiliş!", description=f"Ödül: **{odul}**\nSüre: {saniye}s", color=discord.Color.random())
     msg = await interaction.channel.send(embed=embed)
     await msg.add_reaction("🎉")
     giveaways[msg.id] = {"end": saniye, "channel": interaction.channel.id, "reward": odul}
