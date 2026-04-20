@@ -6,7 +6,7 @@ import random
 from discord.ext import commands, tasks
 from discord import app_commands
 
-# ================= AYARLAR & INTENTS =================
+# ================= AYARLAR =================
 intents = discord.Intents.all()
 bot = commands.Bot(command_prefix="!", intents=intents)
 
@@ -14,13 +14,12 @@ INVITE_DB = "invites.json"
 WARN_DB = "warns.json"
 
 DUYURU_KANAL_ID = 1494765464000397473
-SES_KANAL_ID = 1459873716698877972
 OTO_ROL_ID = 1456546396814573681
 
 invites = {}
 giveaways = {}
 
-# ================= VERİTABANI =================
+# ================= DATABASE =================
 def load_db(name):
     if not os.path.exists(name):
         with open(name, "w") as f:
@@ -42,7 +41,7 @@ class TicketControlView(discord.ui.View):
 
     @discord.ui.button(label="Ticketı Kapat", style=discord.ButtonStyle.red, emoji="🔒")
     async def close_ticket(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await interaction.response.send_message("Kanal 3 saniye içinde kapatılıyor...")
+        await interaction.response.send_message("Kapatılıyor...")
         await asyncio.sleep(3)
         await interaction.channel.delete()
 
@@ -58,15 +57,11 @@ class TicketSelect(discord.ui.Select):
 
     async def callback(self, interaction: discord.Interaction):
         guild = interaction.guild
-        support_role = discord.utils.get(guild.roles, name="Support")
 
         overwrites = {
             guild.default_role: discord.PermissionOverwrite(view_channel=False),
             interaction.user: discord.PermissionOverwrite(view_channel=True)
         }
-
-        if support_role:
-            overwrites[support_role] = discord.PermissionOverwrite(view_channel=True)
 
         channel = await guild.create_text_channel(
             name=f"ticket-{interaction.user.name}",
@@ -87,40 +82,17 @@ class TicketView(discord.ui.View):
         super().__init__(timeout=None)
         self.add_item(TicketSelect())
 
-# ================= SES =================
-async def stay_in_voice():
-    try:
-        channel = await bot.fetch_channel(SES_KANAL_ID)
-        vc = discord.utils.get(bot.voice_clients, guild=channel.guild)
-
-        if not vc:
-            await channel.connect(self_deaf=True)
-        elif vc.channel.id != SES_KANAL_ID:
-            await vc.move_to(channel)
-
-    except Exception as e:
-        print("Ses hata:", e)
-
-@tasks.loop(seconds=60)
-async def voice_guard():
-    await stay_in_voice()
-
 # ================= EVENTS =================
 @bot.event
 async def on_ready():
     await asyncio.sleep(2)
 
-    await stay_in_voice()
-
     for guild in bot.guilds:
         try:
             invites[guild.id] = await guild.invites()
-            await bot.tree.sync(guild=guild)  # 🔥 FIX
+            await bot.tree.sync(guild=guild)  # 🔥 ANINDA KOMUT
         except:
             pass
-
-    if not voice_guard.is_running():
-        voice_guard.start()
 
     if not check_giveaways.is_running():
         check_giveaways.start()
