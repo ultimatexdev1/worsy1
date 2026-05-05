@@ -76,7 +76,7 @@ class TicketSelect(discord.ui.Select):
 
         embed = discord.Embed(
             title=f"🎫 {category_name} Talebi",
-            description=f"Merhaba {interaction.user.mention}, talebiniz alındı. **Velgrad** yetkilileri yakında ilgilenecektir.",
+            description=f"Merhaba {interaction.user.mention}, talebiniz alındı. **Worsy** yetkilileri yakında ilgilenecektir.",
             color=discord.Color.green()
         )
         await channel.send(embed=embed, view=TicketControlView())
@@ -92,7 +92,7 @@ class TicketView(discord.ui.View):
 async def on_ready():
     await asyncio.sleep(3) 
 
-    # Sunucu davetlerini önbelleğe al (Invite sistemi için)
+    # Sunucu davetlerini önbelleğe al
     for guild in bot.guilds:
         try:
             invites[guild.id] = await guild.invites()
@@ -104,7 +104,7 @@ async def on_ready():
         check_giveaways.start()
 
     await bot.tree.sync()
-    print(f"✅ {bot.user} (Velgrad) Aktif! Ses sistemi devre dışı bırakıldı.")
+    print(f"✅ {bot.user} (Worsy) Aktif! Ses sistemi devre dışı bırakıldı.")
 
 @bot.event
 async def on_member_join(member):
@@ -134,23 +134,23 @@ async def on_member_join(member):
 
 # ================= KOMUTLAR =================
 
-@bot.tree.command(name="duyuru-at", description="Velgrad duyuru kanalına mesaj gönderir.")
+@bot.tree.command(name="duyuru-at", description="Worsy duyuru kanalına mesaj gönderir.")
 @app_commands.checks.has_permissions(administrator=True)
 async def duyuru_at(interaction: discord.Interaction, mesaj: str):
     channel = bot.get_channel(DUYURU_KANAL_ID)
     if not channel:
         return await interaction.response.send_message("Hata: Duyuru kanalı bulunamadı!", ephemeral=True)
     
-    embed = discord.Embed(title="📢 Velgrad | DUYURU", description=mesaj, color=discord.Color.red())
-    embed.set_footer(text="Velgrad Yönetimi")
+    embed = discord.Embed(title="📢 Worsy | DUYURU", description=mesaj, color=discord.Color.red())
+    embed.set_footer(text="Worsy Yönetimi")
     await channel.send(content="@everyone", embed=embed)
     await interaction.response.send_message("Duyuru başarıyla paylaşıldı.", ephemeral=True)
 
-@bot.tree.command(name="ticket-kur", description="Velgrad ticket sistemini başlatır.")
+@bot.tree.command(name="ticket-kur", description="Worsy ticket sistemini başlatır.")
 @app_commands.checks.has_permissions(administrator=True)
 async def ticket_kur(interaction: discord.Interaction):
     embed = discord.Embed(
-        title="⚔️ Velgrad | Destek Sistemi",
+        title="⚔️ Worsy | Destek Sistemi",
         description="Aşağıdaki menüden bir kategori seçerek destek talebi oluşturabilirsiniz.",
         color=discord.Color.blue()
     )
@@ -159,7 +159,7 @@ async def ticket_kur(interaction: discord.Interaction):
 
 @bot.tree.command(name="çekiliş", description="Çekiliş başlatır.")
 async def cekilis(interaction: discord.Interaction, saniye: int, odul: str):
-    embed = discord.Embed(title="🎉 Velgrad | Çekiliş!", description=f"Ödül: **{odul}**\nSüre: {saniye}s", color=discord.Color.random())
+    embed = discord.Embed(title="🎉 Worsy | Çekiliş!", description=f"Ödül: **{odul}**\nSüre: {saniye}s", color=discord.Color.random())
     msg = await interaction.channel.send(embed=embed)
     await msg.add_reaction("🎉")
     giveaways[msg.id] = {"end": saniye, "channel": interaction.channel.id, "reward": odul}
@@ -191,10 +191,12 @@ async def check_giveaways():
             if channel:
                 try:
                     msg = await channel.fetch_message(msg_id)
+                    # Reaksiyon verenleri çek
                     users = [u async for u in msg.reactions[0].users() if not u.bot]
                     winner = random.choice(users).mention if users else "Yeterli katılım yok."
                     await channel.send(f"🎊 Çekiliş Sonuçlandı! Ödül: **{giveaways[msg_id]['reward']}** | Kazanan: {winner}")
-                except: pass
+                except Exception as e:
+                    print(f"Çekiliş hatası: {e}")
             del giveaways[msg_id]
 
 # ================= ÇALIŞTIR =================
